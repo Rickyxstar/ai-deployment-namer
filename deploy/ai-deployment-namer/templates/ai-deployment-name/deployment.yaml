@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-deployment-namer
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-deployment-namer
+  template:
+    metadata:
+      labels:
+        app: ai-deployment-namer
+    spec:
+      containers:
+      - name: ai-deployment-namer
+        image: {{ .Values.webhook.image }}
+        imagePullPolicy: Always
+        env:
+        - name: NAME_GENERATOR
+          value: {{ .Values.nameGenerator }}
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: chatgpt
+              key: OPENAI_API_KEY
+        - name: OLLAMA_HOST
+          value: http://ollama:11434
+        - name: MODEL
+          value: {{ .Values.model }}
+        ports:
+        - containerPort: 9443
+        volumeMounts:
+        - name: webhook-certs
+          mountPath: /tmp/k8s-webhook-server/serving-certs/tls.crt
+          subPath: tls.crt
+          readOnly: true
+        - name: webhook-certs
+          mountPath: /tmp/k8s-webhook-server/serving-certs/tls.key
+          subPath: tls.key
+          readOnly: true
+      volumes:
+      - name: webhook-certs
+        secret:
+          secretName: webhook-server-cert

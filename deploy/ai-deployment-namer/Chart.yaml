@@ -1,0 +1,5 @@
+apiVersion: v2
+name: ai-deployment-namer
+description: A webhook that uses AI to automatically name your deployments! Weather you like it or not...
+version: 0.1.0
+appVersion: 0.1.0

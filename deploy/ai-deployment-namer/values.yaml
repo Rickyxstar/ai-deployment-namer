@@ -1,0 +1,12 @@
+---
+webhook:
+  image: rickyxstar/ai-deployment-namer:0.1.0
+
+nameGenerator: chatgpt
+model: "gpt-4o-mini"
+
+ollama:
+  image: ollama/ollama:latest
+
+chatgpt:
+  token: ""

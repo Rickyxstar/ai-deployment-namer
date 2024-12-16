@@ -1,0 +1,15 @@
+{{- if eq .Values.nameGenerator "ollama" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  ports:
+    - port: 11434
+      protocol: TCP
+      targetPort: 11434
+  selector:
+    app: ollama
+{{- end }}

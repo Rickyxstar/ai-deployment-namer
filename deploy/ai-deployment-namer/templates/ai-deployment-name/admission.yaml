@@ -1,0 +1,50 @@
+---
+{{- $ca := genCA "webhook-server-cert" 3650 }}
+{{- $cn := "ai-deployment-namer" }}
+{{- $dns1 := printf "%s.%s" $cn .Release.Namespace }}
+{{- $dns2 := printf "%s.%s.svc" $cn .Release.Namespace }}
+{{- $cert := genSignedCert $cn nil (list "ai-deployment-namer" $dns1 $dns2) 3650 $ca }}
+---
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: webhook-server-cert
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  {{- $secretObj := (lookup "v1" "Secret" .Release.Namespace "webhook-server-cert") }}
+  {{- $secretData := (get $secretObj "data") | default dict }}
+
+  {{- $secretCert := (get $secretData "tls.crt") | default (printf "%s\n%s" $cert.Cert $ca.Cert | b64enc) }}
+  {{- $secretKey := (get $secretData "tls.key") | default ($cert.Key | b64enc) }}
+  {{- $secretCaCert := (get $secretData "ca.crt") | default ($ca.Cert | b64enc) }}
+  tls.crt: {{ $secretCert | quote }}
+  tls.key: {{ $secretKey | quote }}
+  ca.crt: {{ $secretCaCert | quote }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: ai-deployment-namer
+webhooks:
+  - name: deployments.rickyxstar.dev
+    clientConfig:
+      service:
+        name: ai-deployment-namer
+        namespace: "{{ .Release.Namespace }}"
+        path: /mutate-apps-v1-deployment
+        port: 9443
+      caBundle: "{{ $secretCaCert }}"
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        resources: ["deployments"]
+    failurePolicy: Ignore
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
